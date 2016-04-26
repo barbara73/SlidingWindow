@@ -10,8 +10,8 @@ This code is written in c++ in Xcode and uses opencv2 and xgBoost. Below are som
     - this tutorial can also be used for installation on El Capitan
   - http://blogs.wcode.org/2014/11/howto-setup-xcode-6-1-to-work-with-opencv-libraries/
 - install homebrew
+- brew install clang-omp; export CC=clang-omp; export CXX=clang-omp++; cd python-package; sudo python setup.py install
 - install xgboost (http://xgboost.readthedocs.org/en/latest/build.html)
-- install openmpi (does not work for me with xgboost by now)
 - add in build settings:
 	- Header search paths: /usr/local/include/xgboost/include /usr/local/include /usr/local/include/xgboost/rabit/include /usr/local/include/xgboost/dmlc-core/include
 	- Library search paths: /usr/local/lib /usr/local/include/xgboost/lib /usr/local/include/xgboost/rabit/lib /usr/local/include/xgboost/dmlc-core
