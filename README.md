@@ -1,5 +1,5 @@
 # SlidingWindow
-This code uses openCV2 and 
+This code is written in c++ in Xcode and uses opencv2 and xgBoost. Below are some installation details.
 
 - install macports (https://www.macports.org)
 - install cmake (https://cmake.org)
