@@ -100,7 +100,7 @@ Mat Image::downscale_image(Mat img) {
 vector<vector<float>> Image::slide_window_over_image(int param, Mat img) {
     stride -= param;
     
-    //vector<vector<float>> score(img.rows-blockHeight+1, vector<float>(img.cols-blockWidth+1));
+    vector<vector<float>> score(img.rows-blockHeight+1, vector<float>(img.cols-blockWidth+1));
     
     //int count = 0;
     //int i = round(img.rows+stride-1)/stride;
@@ -108,10 +108,10 @@ vector<vector<float>> Image::slide_window_over_image(int param, Mat img) {
     //vector<int> rowList(i*j);
     //vector<int> colList(i*j);
     
-    vector<float> oFeatures(img.cols-blockWidth+1);
-    vector<vector<float>> totalFeaturePerPatch(img.rows-blockHeight+1, vector<float>(img.cols-blockWidth+1));
+    //vector<float> orientationFeatures(i*j);
+    //vector<std::vector<float>> totalFeaturePerPatch;
     
-    for (auto v : totalFeaturePerPatch) {
+    for (auto v : score) {
         for (auto s : v) {
             s = 0.;
         }
@@ -130,24 +130,27 @@ vector<vector<float>> Image::slide_window_over_image(int param, Mat img) {
             
             Scalar meanValue = mean(imageRoi);
             
-            float score;
+            
             if (meanValue[0]>20) {
                 std::vector<float> orientationFeatures;
                 //std::vector<std::vector<float>> totalFeaturePerPatch;
                 orientationFeatures = make_orientationHistogramFeatures(imageRoi);
-                score = testTheDataXGBoost(classifier, orientationFeatures, 1, partialRectangleNB*9);
+                //float score = testTheDataXGBoost(classifier, orientationFeatures, 1, nbRectangles);
                 
             }
-        
+            /*
+             if (meanValue[0] > 20) {
+             score[r][c] = 0.8;
+             }
+             */
             
-            oFeatures.push_back(score);
         }
-        totalFeaturePerPatch.push_back(oFeatures);
-
+        
     }
     
+    //totalFeaturePerPatch.push_back(orientationFeatures);
     
-    return totalFeaturePerPatch;
+    return score;
 }
 
 
@@ -160,7 +163,7 @@ float Image::testTheDataXGBoost(BoosterHandle handle, vector<float> test, int r,
     XGDMatrixCreateFromMat((float *) &test[0], r, c, -1, &h_test);
     bst_ulong out_len;
     const float *f;
-    XGBoosterPredict(handle, h_test, 0, 0, &out_len, &f);
+    XGBoosterPredict(handle, h_test, 0,0,&out_len,&f);
     
     for (unsigned int i=0;i<out_len;i++)
         std::cout << "prediction[" << i << "]=" << f[i] << std::endl;
@@ -341,18 +344,18 @@ std::vector<float> Image::group_to_orientations(Mat dir, Mat edge0) {
          sum8 = (integralImg8.at<double>(Point(x+w,y+h)) - integralImg8.at<double>(Point(x+w,y)) - integralImg8.at<double>(Point(x,y+h)) + integralImg8.at<double>(Point(x,y)))/(max8+0.000001);*/
         
         
-        sum0 = (sum(integralImg0(bb))[0]) / (max0+0.000001);
-        sum1 = (sum(integralImg1(bb))[0]) / (max1+0.000001);
-        sum2 = (sum(integralImg2(bb))[0]) / (max2+0.000001);
-        sum3 = (sum(integralImg3(bb))[0]) / (max3+0.000001);
-        sum4 = (sum(integralImg4(bb))[0]) / (max4+0.000001);
-        sum5 = (sum(integralImg5(bb))[0]) / (max5+0.000001);
-        sum6 = (sum(integralImg6(bb))[0]) / (max6+0.000001);
-        sum7 = (sum(integralImg7(bb))[0]) / (max7+0.000001);
-        sum8 = (sum(integralImg8(bb))[0]) / (max8+0.000001);
+        sum0 = (sum(integralImg0(bb))[0])/(max0+0.000001);
+        sum1 = (sum(integralImg1(bb))[0])/(max1+0.000001);
+        sum2 = (sum(integralImg2(bb))[0])/(max2+0.000001);
+        sum3 = (sum(integralImg3(bb))[0])/(max3+0.000001);
+        sum4 = (sum(integralImg4(bb))[0])/(max4+0.000001);
+        sum5 = (sum(integralImg5(bb))[0])/(max5+0.000001);
+        sum6 = (sum(integralImg6(bb))[0])/(max6+0.000001);
+        sum7 = (sum(integralImg7(bb))[0])/(max7+0.000001);
+        sum8 = (sum(integralImg8(bb))[0])/(max8+0.000001);
         
         // histogram of ith rectangle
-        std::vector<float> totalSum = {sum0, sum1, sum2, sum3, sum4, sum5, sum6, sum7, sum8};
+        std::vector<float> totalSum = {static_cast<float>(sum0), static_cast<float>(sum1), static_cast<float>(sum2), static_cast<float>(sum3), static_cast<float>(sum4), static_cast<float>(sum5), static_cast<float>(sum6), static_cast<float>(sum7), static_cast<float>(sum8)};
         newSum.insert (newSum.end(), totalSum.begin(), totalSum.end());
     }
     return newSum;
