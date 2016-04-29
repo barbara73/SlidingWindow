@@ -11,8 +11,20 @@
 
 #include "Image.hpp"
 #include <stdio.h>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "xgboost/c_api.h"
+#include <dmlc/timer.h>
+
 
 class ImagePatch: public Image {
+    unsigned long fileNameSize;
+    int bLabel;
+    
+public:
+    std::vector<std::vector<float>> extract_features_of_patches(std::vector<cv::Rect>&, cv::vector<cv::String>);
+    std::vector<float> extract_label_of_patches(int);
+    BoosterHandle trainTheDataXGBoost(std::vector<std::vector<float>>, std::vector<float>, int, int, int);
     
 };
 
