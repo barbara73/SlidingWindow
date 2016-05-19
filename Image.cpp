@@ -1,3 +1,4 @@
+
 //
 //  Image.cpp
 //  SlidingWindow
@@ -26,11 +27,12 @@ Image::Image(int red, int str, float redParam, int th, int nbPartRect):nbReducti
 //--------------------------
 Mat Image::vectorToMat(vector<vector<float>> vec) {
     
-    // Create a new, _empty_ cv::Mat with the row size of vec
-    Mat mat(0, (int)vec[0].size(), DataType<float>::type);
+    Mat mat(0, (int)vec[0].size(), DataType<float>::type);      //create a new, empty Mat with the row size of vec
+    
     for (auto i = 0; i < vec.size(); ++i) {
-        // Make a temporary cv::Mat row and add to mat _without_ data copy
-        Mat sample(1, (int)vec[0].size(), DataType<float>::type, vec[i].data());
+        
+        Mat sample(1, (int)vec[0].size(), DataType<float>::type, vec[i].data());    //make temporary Mat row and add
+                                                                                    //to mat without data copy
         mat.push_back(sample);
     }
     return mat;
@@ -50,46 +52,31 @@ Mat Image::downscale_image(Mat img) {
     
     downscaledImg = img;
     
-    auto t0 = chrono::high_resolution_clock::now();
+    //auto t0 = chrono::high_resolution_clock::now();
     for (int i=0; i!=nbReductions; ++i) {
         
         copyMakeBorder(downscaledImg, paddedImg, h, h, w, w, borderType, 0);    //padd image with zeros
         
-        auto t2 = chrono::high_resolution_clock::now();
-        
-        // slide window over downscaled image
-        vectorMap = slide_window_over_image(i, paddedImg);
+        vectorMap = slide_window_over_image(i, paddedImg);  // slide window over downscaled image
         
         map.release();
-        map = vectorToMat(vectorMap);       //make Mat image which is smaller than before
+        map = vectorToMat(vectorMap);                       //make Mat image which is smaller than before
         vector<vector<float>> newVector;
         vectorMap.swap(newVector);
         
-        
-        //namedWindow( "MAP", CV_WINDOW_AUTOSIZE );
-        //imshow( "MAP", map);
-        //waitKey(0);
-        
         const Size size(imgWidth, imgHeight);
-        resize(map, resizedMap, size);      // resize map to original size WHY NOT WORKING???????
+        resize(map, resizedMap, size);                      // resize map to original size WHY NOT WORKING???????
         cout << "map: " << map.size() << "resized Map: " << resizedMap.size() << endl;
-        
-        //namedWindow( "resizedMAP", CV_WINDOW_AUTOSIZE );
-        //imshow( "resizedMAP", resizedMap);
-        //waitKey(0);
-        
-        max(resizedMap, newMap, tempMap);   // take maximum pixel of each map
+    
+        max(resizedMap, newMap, tempMap);                   // take maximum pixel of each map
         newMap = tempMap;
-        
-        auto t3 = chrono::high_resolution_clock::now();
-        cout << chrono::duration_cast<chrono::seconds>(t3-t2).count() << " sec for sliding window per image\n";
         
         resize(downscaledImg, tempImg, Size(), reductionParameter, reductionParameter, CV_INTER_AREA);          //ok
         downscaledImg = tempImg;
     }
     
-    auto t1 = chrono::high_resolution_clock::now();
-    cout << chrono::duration_cast<chrono::seconds>(t1-t0).count() << " sec for all images\n";
+    //auto t1 = chrono::high_resolution_clock::now();
+    //cout << chrono::duration_cast<chrono::seconds>(t1-t0).count() << " sec for all images\n";
     
     return newMap;
 }
@@ -100,57 +87,43 @@ Mat Image::downscale_image(Mat img) {
 vector<vector<float>> Image::slide_window_over_image(int param, Mat img) {
     stride -= param;
     
-    vector<vector<float>> score(img.rows-blockHeight+1, vector<float>(img.cols-blockWidth+1));
-    
-    //int count = 0;
-    //int i = round(img.rows+stride-1)/stride;
-    //int j = round(img.cols+stride-1)/stride;
-    //vector<int> rowList(i*j);
-    //vector<int> colList(i*j);
-    
-    //vector<float> orientationFeatures(i*j);
-    //vector<std::vector<float>> totalFeaturePerPatch;
-    
-    for (auto v : score) {
+    vector<float> oFeatures(img.cols-blockWidth+1);         //orientation features
+    vector<vector<float>> totalFeaturePerPatch(img.rows-blockHeight+1, vector<float>(img.cols-blockWidth+1));
+    vector<float> orientationFeatures;
+    /*for (auto v : totalFeaturePerPatch) {                   //initialise vector with zeros
         for (auto s : v) {
             s = 0.;
         }
-    }
+    }*/
     
-    for (int r=0; r<img.rows-blockHeight; r=r+stride) {
-        for (int c=0; c<img.cols-blockWidth; c=c+stride) {
-            //rowList[count] = r;
-            //colList[count] = c;
-            
-            //cout << "r: " << r << ", c: " << c << endl;
-            //cout << "stride: " << stride << endl;
+    Mat image_grey;
+    // change colour image to greyscale image
+    cvtColor(img, image_grey, CV_BGR2GRAY);
+    
+    for (int r=0; r<image_grey.rows-blockHeight; r=r+stride) {
+        for (int c=0; c<image_grey.cols-blockWidth; c=c+stride) {
             
             Rect roi(c, r, blockWidth, blockHeight);
-            Mat imageRoi = img(roi);
+            Mat imageRoi = image_grey(roi);
             
             Scalar meanValue = mean(imageRoi);
             
-            
+            float score;
             if (meanValue[0]>20) {
-                std::vector<float> orientationFeatures;
-                //std::vector<std::vector<float>> totalFeaturePerPatch;
+                
+                
                 orientationFeatures = make_orientationHistogramFeatures(imageRoi);
-                //float score = testTheDataXGBoost(classifier, orientationFeatures, 1, nbRectangles);
+                score = testTheDataXGBoost(classifier, orientationFeatures, 1, partialRectangleNB*9);
                 
             }
-            /*
-             if (meanValue[0] > 20) {
-             score[r][c] = 0.8;
-             }
-             */
-            
+            else score = 0.;
+
+            oFeatures.push_back(score);
         }
-        
+        totalFeaturePerPatch.push_back(oFeatures);
     }
     
-    //totalFeaturePerPatch.push_back(orientationFeatures);
-    
-    return score;
+    return totalFeaturePerPatch;
 }
 
 
@@ -163,7 +136,7 @@ float Image::testTheDataXGBoost(BoosterHandle handle, vector<float> test, int r,
     XGDMatrixCreateFromMat((float *) &test[0], r, c, -1, &h_test);
     bst_ulong out_len;
     const float *f;
-    XGBoosterPredict(handle, h_test, 0,0,&out_len,&f);
+    XGBoosterPredict(handle, h_test, 0, 0, &out_len, &f);
     
     for (unsigned int i=0;i<out_len;i++)
         std::cout << "prediction[" << i << "]=" << f[i] << std::endl;
@@ -174,15 +147,15 @@ float Image::testTheDataXGBoost(BoosterHandle handle, vector<float> test, int r,
 
 // calculate the orientation histogram features
 //---------------------------------------------
-std::vector<float> Image::make_orientationHistogramFeatures(Mat& image) {
+std::vector<float> Image::make_orientationHistogramFeatures(Mat& image_grey) {
     
-    Mat magnitude, direction, grad_y, grad_x, image_grey;
+    Mat magnitude, direction, grad_y, grad_x;//, image_grey;
     int scale = 1;
     int delta = 0;
     int ddepth = CV_32F;
     
     // change colour image to greyscale image
-    cvtColor(image, image_grey, CV_BGR2GRAY);
+    //cvtColor(image, image_grey, CV_BGR2GRAY);
     
     // apply sobel to get gradient image
     Sobel(image_grey, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
@@ -195,12 +168,10 @@ std::vector<float> Image::make_orientationHistogramFeatures(Mat& image) {
     
     int const max_BINARY_value = 1;
     
-    Mat orient0;                    //mask
-    //int th = get_ThMagnitude();
+    Mat orient0;                                            //mask
     threshold(magnitude, orient0, thresholdMagnitude, max_BINARY_value, THRESH_BINARY);
     
-    //std::vector<double> regionSum = group_to_orientations(direction, orient0);
-    return group_to_orientations(direction, orient0);//regionSum;
+    return group_to_orientations(direction, orient0);       //regionSum;
 }
 
 
@@ -275,37 +246,11 @@ std::vector<float> Image::group_to_orientations(Mat dir, Mat edge0) {
     multiply(edge0, orient8, edge8, 1, -1);
     integral(edge8, integralImg8);
     
-    /*// for test
-     Mat o1, o2, o3, o4, o5, o6, o7, o8;
-     multiply(orient0, orient1, o1, 1, -1);
-     multiply(orient0, orient2, o2, 1, -1);
-     multiply(orient0, orient3, o3, 1, -1);
-     multiply(orient0, orient4, o4, 1, -1);
-     multiply(orient0, orient5, o5, 1, -1);
-     multiply(orient0, orient6, o6, 1, -1);
-     multiply(orient0, orient7, o7, 1, -1);
-     multiply(orient0, orient8, o8, 1, -1);
-     
-     Mat dst, dst1, dst2, dst3, dst4, dst5, dst6, comparison;
-     add(o1, o2, dst, noArray(), -1);
-     add(o3, dst, dst1, noArray(), -1);
-     add(o4, dst1, dst2, noArray(), -1);
-     add(o5, dst2, dst3, noArray(), -1);
-     add(o6, dst3, dst4, noArray(), -1);
-     add(o7, dst4, dst5, noArray(), -1);
-     add(o8, dst5, dst6, noArray(), -1);
-     
-     compare(dst6, orient0, comparison, CMP_EQ);
-     
-     namedWindow("mask", CV_WINDOW_AUTOSIZE);
-     imshow("mask", comparison);
-     cv::waitKey(0);
-     cv::destroyWindow("mask");*/
     
     // evaluate the sum of the patch for normalisation
-    float max0, max1, max2, max3, max4, max5, max6, max7, max8;
-    int x = integralImg0.cols-1;
-    int y = integralImg0.rows-1;
+    int max0, max1, max2, max3, max4, max5, max6, max7, max8;
+    int x = integralImg0.cols;
+    int y = integralImg0.rows;
     max0 = integralImg0.at<double>(Point(x,y));
     max1 = integralImg1.at<double>(Point(x,y));
     max2 = integralImg2.at<double>(Point(x,y));
@@ -319,49 +264,39 @@ std::vector<float> Image::group_to_orientations(Mat dir, Mat edge0) {
     // calculate the region sum in a rectangle of each map
     std::vector<float> newSum {};
     
-    //int partRectNb = get_NbRectangles();
-    
     for (int i = 0; i != partialRectangleNB; ++i) {
         
         Rect bb = boundingBox[i];
-        //std::cout << bb << std::endl;
-        /*int x = bb[0];
-         int y = bb[i][1];
-         int w = bbRectangle[i][2];
-         int h = bbRectangle[i][3];*/
-        
-        //std::cout << x << ", " << y << ", " << w << ", " << h << ", " <<  std::endl;
         float sum0, sum1, sum2, sum3, sum4, sum5, sum6, sum7, sum8;
-        /*
-         sum0 = (integralImg0.at<double>(Point(x+w,y+h)) - integralImg0.at<double>(Point(x+w,y)) - integralImg0.at<double>(Point(x,y+h)) + integralImg0.at<double>(Point(x,y)))/(max0+0.000001);
-         sum1 = (integralImg1.at<double>(Point(x+w,y+h)) - integralImg1.at<double>(Point(x+w,y)) - integralImg1.at<double>(Point(x,y+h)) + integralImg1.at<double>(Point(x,y)))/(max1+0.000001);
-         sum2 = (integralImg2.at<double>(Point(x+w,y+h)) - integralImg2.at<double>(Point(x+w,y)) - integralImg2.at<double>(Point(x,y+h)) + integralImg2.at<double>(Point(x,y)))/(max2+0.000001);
-         sum3 = (integralImg3.at<double>(Point(x+w,y+h)) - integralImg3.at<double>(Point(x+w,y)) - integralImg3.at<double>(Point(x,y+h)) + integralImg3.at<double>(Point(x,y)))/(max3+0.000001);
-         sum4 = (integralImg4.at<double>(Point(x+w,y+h)) - integralImg4.at<double>(Point(x+w,y)) - integralImg4.at<double>(Point(x,y+h)) + integralImg4.at<double>(Point(x,y)))/(max4+0.000001);
-         sum5 = (integralImg5.at<double>(Point(x+w,y+h)) - integralImg5.at<double>(Point(x+w,y)) - integralImg5.at<double>(Point(x,y+h)) + integralImg5.at<double>(Point(x,y)))/(max5+0.000001);
-         sum6 = (integralImg6.at<double>(Point(x+w,y+h)) - integralImg6.at<double>(Point(x+w,y)) - integralImg6.at<double>(Point(x,y+h)) + integralImg6.at<double>(Point(x,y)))/(max6+0.000001);
-         sum7 = (integralImg7.at<double>(Point(x+w,y+h)) - integralImg7.at<double>(Point(x+w,y)) - integralImg7.at<double>(Point(x,y+h)) + integralImg7.at<double>(Point(x,y)))/(max7+0.000001);
-         sum8 = (integralImg8.at<double>(Point(x+w,y+h)) - integralImg8.at<double>(Point(x+w,y)) - integralImg8.at<double>(Point(x,y+h)) + integralImg8.at<double>(Point(x,y)))/(max8+0.000001);*/
         
-        
-        sum0 = (sum(integralImg0(bb))[0])/(max0+0.000001);
-        sum1 = (sum(integralImg1(bb))[0])/(max1+0.000001);
-        sum2 = (sum(integralImg2(bb))[0])/(max2+0.000001);
-        sum3 = (sum(integralImg3(bb))[0])/(max3+0.000001);
-        sum4 = (sum(integralImg4(bb))[0])/(max4+0.000001);
-        sum5 = (sum(integralImg5(bb))[0])/(max5+0.000001);
-        sum6 = (sum(integralImg6(bb))[0])/(max6+0.000001);
-        sum7 = (sum(integralImg7(bb))[0])/(max7+0.000001);
-        sum8 = (sum(integralImg8(bb))[0])/(max8+0.000001);
+        sum0 = calculateImageIntegral(integralImg0, bb, max0);
+        sum1 = calculateImageIntegral(integralImg1, bb, max1);
+        sum2 = calculateImageIntegral(integralImg2, bb, max2);
+        sum3 = calculateImageIntegral(integralImg3, bb, max3);
+        sum4 = calculateImageIntegral(integralImg4, bb, max4);
+        sum5 = calculateImageIntegral(integralImg5, bb, max5);
+        sum6 = calculateImageIntegral(integralImg6, bb, max6);
+        sum7 = calculateImageIntegral(integralImg7, bb, max7);
+        sum8 = calculateImageIntegral(integralImg8, bb, max8);
         
         // histogram of ith rectangle
-        std::vector<float> totalSum = {static_cast<float>(sum0), static_cast<float>(sum1), static_cast<float>(sum2), static_cast<float>(sum3), static_cast<float>(sum4), static_cast<float>(sum5), static_cast<float>(sum6), static_cast<float>(sum7), static_cast<float>(sum8)};
+        std::vector<float> totalSum = {sum0, sum1, sum2, sum3, sum4, sum5, sum6, sum7, sum8};
         newSum.insert (newSum.end(), totalSum.begin(), totalSum.end());
+        
     }
     return newSum;
 }
 
-
+//calculate rectangle inside image integral
+//-----------------------------------------
+float Image::calculateImageIntegral(Mat integralImg, Rect rect, int max) {
+    float a = (integralImg.at<double>(Point(rect.x+rect.width, rect.y+rect.height)) -
+               integralImg.at<double>(Point(rect.x+rect.width, rect.y)) -
+               integralImg.at<double>(Point(rect.x, rect.y+rect.height)) +
+               integralImg.at<double>(Point(rect.x, rect.y))) / (max+0.000001);
+    return a;
+  
+}
 
 
 // destructor

@@ -20,15 +20,10 @@
 class ImagePatch: public Image {
     unsigned long fileNameSize;
     int bLabel;
-    //cv::vector<cv::Rect> boundingBox;
 public:
-    std::vector<std::vector<float>> extract_features_of_patches(cv::vector<cv::String>);
+    std::vector<std::vector<float>> extract_features_of_patches(cv::vector<cv::String>&);
     std::vector<float> extract_label_of_patches(int);
     BoosterHandle trainTheDataXGBoost(std::vector<std::vector<float>>, std::vector<float>, int, int, int);
-    
-    /*unsigned long get_SizeFileName()const {
-        return this->fileNameSize;
-    }*/
 };
 
 #endif /* ImagePatch_hpp */

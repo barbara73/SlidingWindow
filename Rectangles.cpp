@@ -13,7 +13,7 @@
 using namespace std;
 
 // default constructor
-Rectangles::Rectangles():patchWidth{35}, patchHeight{35}, numberOfRectangles{10000} {}
+Rectangles::Rectangles():patchWidth{41}, patchHeight{41}, numberOfRectangles{10000} {}
 
 
 // constructor called if patch is square

@@ -39,6 +39,8 @@ public:
     std::vector<std::vector<float>> slide_window_over_image(int, cv::Mat);
     float testTheDataXGBoost(BoosterHandle, std::vector<float>, int, int);
     cv::Mat vectorToMat(std::vector<std::vector<float>>);
+    float calculateImageIntegral(cv::Mat, cv::Rect r, int max);
+   
     
     void set_imageHeight(const int h) {
         imgHeight = h;
